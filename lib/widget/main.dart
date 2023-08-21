@@ -12,10 +12,113 @@ class tudo extends StatefulWidget {
   State<tudo> createState() => _tudo();
 }
 
+enum EvaluationResult {
+  Tautology,
+  Contradiction,
+  Contingency,
+}
+
 class _tudo extends State<tudo>{
 
   static const OPERATORS = ['∼','∧','⊻','∨','→','↔'];
   String expression = " ";
+
+  bool evaluateExpression(String expression, Map<String, bool> values) {
+    expression = expression.replaceAll('→', '=>').replaceAll('¬', '!');
+
+    for (var variable in values.keys) {
+      expression = expression.replaceAll(variable, values[variable].toString());
+    }
+
+    return Function.apply(logicalExpression, [expression]);
+  }
+
+  bool logicalExpression(String expression) => logicalEval(expression);
+
+  bool logicalEval(String expression) {
+    final tokens = expression.split('');
+    final stack = <bool>[];
+
+    for (var token in tokens) {
+      if (token == 'T') {
+        stack.add(true);
+      } else if (token == 'F') {
+        stack.add(false);
+      } else if (token == '!') {
+        final operand = stack.removeLast();
+        stack.add(!operand);
+      } else if (token == '&') {
+        final operand2 = stack.removeLast();
+        final operand1 = stack.removeLast();
+        stack.add(operand1 && operand2);
+      } else if (token == '|') {
+        final operand2 = stack.removeLast();
+        final operand1 = stack.removeLast();
+        stack.add(operand1 || operand2);
+      } else if (token == '=>') {
+        final operand2 = stack.removeLast();
+        final operand1 = stack.removeLast();
+        stack.add(!operand1 || operand2);
+      }
+    }
+
+    return stack.isNotEmpty ? stack.first : false;
+  }
+
+  EvaluationResult evaluateLogicalExpression(String expression) {
+    final variables = _extractVariables(expression);
+    final truthValues = _generateTruthValues(variables);
+
+    bool isTautology = true;
+    bool isContradiction = true;
+
+    for (final values in truthValues) {
+      final bool truthyValue = evaluateExpression(expression, values);
+
+      if (!truthyValue) {
+        isTautology = false;
+      }
+
+      if (truthyValue) {
+        isContradiction = false;
+      }
+
+      if (!isTautology && !isContradiction) {
+        break; // No need to continue checking
+      }
+    }
+
+    if (isTautology) {
+      return EvaluationResult.Tautology;
+    } else if (isContradiction) {
+      return EvaluationResult.Contradiction;
+    } else {
+      return EvaluationResult.Contingency;
+    }
+  }
+
+  List<String> _extractVariables(String expression) {
+    final uniqueVariables = expression.split('').where((char) => char != '(' && char != ')' && char != '&' && char != '|' && char != '!' && char != 'T' && char != 'F' && char != '=').toSet();
+    return uniqueVariables.toList();
+  }
+
+  List<Map<String, bool>> _generateTruthValues(List<String> variables) {
+    final truthValues = <Map<String, bool>>[];
+    final count = variables.length;
+
+    for (var i = 0; i < (1 << count); i++) {
+      final values = <String, bool>{};
+
+      for (var j = 0; j < count; j++) {
+        values[variables[j]] = ((i >> j) & 1) == 1;
+      }
+
+      truthValues.add(values);
+    }
+
+    return truthValues;
+  }
+
 
   bool isVariable(String btnVal) {
     if (btnVal.codeUnitAt(0) > 64 && btnVal.codeUnitAt(0) < 91) {
@@ -62,139 +165,15 @@ class _tudo extends State<tudo>{
     });
   }
 
-  String addBinary(String a, String b) {
-    int i = a.length - 1;
-    int j = b.length - 1;
-    int carry = 0;
-    String result = "";
-
-    while (i >= 0 || j >= 0) {
-      int m = i < 0 ? 0 : int.parse(a[i]) | 0;
-      int n = j < 0 ? 0 : int.parse(b[j]) | 0;
-      carry += m + n; // soma de dois dígitos
-      result = (carry % 2).toString() + result; // concatena a string
-      carry = (carry / 2).toInt(); // remove os decimais, 1 / 2 = 0.5, pega apenas o 0
-      i--;
-      j--;
+  void structureAnswer(){
+    var result = evaluateLogicalExpression(expression);
+    if (result == EvaluationResult.Tautology) {
+      print("The expression is a tautology.");
+    } else if (result == EvaluationResult.Contradiction) {
+      print("The expression is a contradiction.");
+    } else {
+      print("The expression is a contingency.");
     }
-    if (carry != 0) {
-      result = carry.toString() + result;
-    }
-    return result;
-  }
-
-  String correctExpression(String texto) {
-    final openParenthesesCount = expression.replaceAll(RegExp(r'[^\(]'), '').length;
-    final closeParenthesesCount = expression.replaceAll(RegExp(r'[^\)]'), '').length;
-    final additionalCloseParentheses = List.generate(
-        openParenthesesCount - closeParenthesesCount, (_) => ')').join('');
-
-    texto = '$texto$additionalCloseParentheses';
-
-    while (RegExp(r'([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|\))([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|∼|\()').hasMatch(texto)) {
-      texto = texto.replaceAllMapped(
-        RegExp(r'([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|\))([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|∼|\()', multiLine: true),
-            (match) {
-          return '${match.group(1)}∧${match.group(2)}';
-        },
-      );
-    }
-
-    return texto;
-  }
-
-
-  List<String> sortVariables(String texto) {
-    Set<String> array = {};
-    for (var item in texto.replaceAll("[Verdadeiro]", "1").replaceAll("[Falso]", "0").split("")) {
-      array.add(item);
-    }
-
-    return array.where((x) {
-      return x.codeUnitAt(0) > 64 && x.codeUnitAt(0) < 91;
-    }).toList()
-      ..sort();
-  }
-
-  Map<String, dynamic> calculateExpression(String exp, Map<String, String> obj, [String stringResult = ""]) {
-    int cont = 0;
-    Map<String, dynamic> expDicio = {};
-    String result = "($exp)";
-
-    while (RegExp(r'\(([^\(\)]*)\)').hasMatch(result)) {
-      cont++;
-      result = result.replaceFirstMapped(RegExp(r'\(([^\(\)]*)\)'), (match) {
-        expDicio['[P$cont'] = {'exp': match.group(1)};
-        return '[P$cont]';
-      });
-    }
-
-    // Aqui, você precisará continuar a implementação da lógica para calcular a expressão,
-    // usando o objeto "obj" para substituir as variáveis e os valores correspondentes,
-    // e também utilizando o mapa "expDicio" para calcular os resultados das expressões entre parênteses.
-
-    // No final, retorne um mapa contendo as informações necessárias.
-    return {
-      'expression': exp,
-      'result': stringResult, // Defina aqui o resultado da expressão calculada
-    };
-  }
-
-  bool isRepeatedVar(String str, List<String> array) {
-    for (var v in array) {
-      if (str == v) return true;
-    }
-    return false;
-  }
-
-  List<String> expressionToArray(List<List<String>> tableData) {
-    List<String> array = [];
-
-    for (List<String> row in tableData) {
-      String lastCell = row.last;
-      array.add(lastCell);
-    }
-
-    return array;
-  }
-
-
-  void structureAnswer() {
-    // Estrutura a resposta
-    expression = correctExpression(expression);
-    List<String> variaveis = sortVariables(expression);
-    int qtdeLinhasTabela = (1 << variaveis.length);
-    String bin = "0" * variaveis.length; // Cria uma string com o valor 0 em binário
-    Map<String, List<String>> arrayAnswerTable = {};
-
-    for (int i = 0; i < qtdeLinhasTabela; i++) {
-      Map<String, String> valores = {};
-      for (int j = 0; j < variaveis.length; j++) {
-        valores[variaveis[j]] = (bin[j] == '0') ? "1" : "0";
-
-        if (arrayAnswerTable[variaveis[j]] == null) {
-          arrayAnswerTable[variaveis[j]] = [];
-        }
-        arrayAnswerTable[variaveis[j]]!.add((bin[j] == '0') ? "V" : "F");
-      }
-
-      var resposta = calculateExpression(expression, valores);
-      for (var expressao in resposta[1].split('|')) {
-        var exp = expressao.split(':');
-        if (exp[0] != "" && !isRepeatedVar(exp[0], variaveis)) {
-          if (arrayAnswerTable[exp[0]] == null) {
-            arrayAnswerTable[exp[0]] = [];
-          }
-          arrayAnswerTable[exp[0]]!.add((exp[1] == '1') ? "V" : "F");
-        }
-      }
-      bin = addBinary(bin, "1"); // Adiciona 1 ao valor binário
-    }
-
-    List<String> expressionResultArray = expressionToArray();
-
-    // Aqui, você precisará usar a abordagem apropriada para atualizar a interface do seu aplicativo Flutter
-    // com os resultados calculados. Não é possível fornecer um código exato sem mais contexto sobre a estrutura do seu aplicativo.
   }
 
   void calculate() {
