@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:test2/widget/widget-all.dart';
 import 'dart:core';
@@ -10,12 +12,6 @@ class tudo extends StatefulWidget {
 
   @override
   State<tudo> createState() => _tudo();
-}
-
-enum EvaluationResult {
-  Tautology,
-  Contradiction,
-  Contingency,
 }
 
 class _tudo extends State<tudo>{
@@ -65,37 +61,6 @@ class _tudo extends State<tudo>{
     return stack.isNotEmpty ? stack.first : false;
   }
 
-  EvaluationResult evaluateLogicalExpression(String expression) {
-    final variables = _extractVariables(expression);
-    final truthValues = _generateTruthValues(variables);
-
-    bool isTautology = true;
-    bool isContradiction = true;
-
-    for (final values in truthValues) {
-      final bool truthyValue = evaluateExpression(expression, values);
-
-      if (!truthyValue) {
-        isTautology = false;
-      }
-
-      if (truthyValue) {
-        isContradiction = false;
-      }
-
-      if (!isTautology && !isContradiction) {
-        break; // No need to continue checking
-      }
-    }
-
-    if (isTautology) {
-      return EvaluationResult.Tautology;
-    } else if (isContradiction) {
-      return EvaluationResult.Contradiction;
-    } else {
-      return EvaluationResult.Contingency;
-    }
-  }
 
   List<String> _extractVariables(String expression) {
     final uniqueVariables = expression.split('').where((char) => char != '(' && char != ')' && char != '&' && char != '|' && char != '!' && char != 'T' && char != 'F' && char != '=').toSet();
@@ -165,22 +130,54 @@ class _tudo extends State<tudo>{
     });
   }
 
-  void structureAnswer(){
-    var result = evaluateLogicalExpression(expression);
-    if (result == EvaluationResult.Tautology) {
-      print("The expression is a tautology.");
-    } else if (result == EvaluationResult.Contradiction) {
-      print("The expression is a contradiction.");
-    } else {
-      print("The expression is a contingency.");
+  String correctExpression(String texto) {
+    String expression = texto;
+    expression +=
+    (expression.replaceAll(RegExp(r'[^\(]'), '').length >
+        expression.replaceAll(RegExp(r'[^\)]'), '').length)
+        ? ')'
+        : '';
+
+    while (RegExp(r'([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|\))([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|∼|\()')
+        .hasMatch(expression)) {
+      expression = expression.replaceAllMapped(
+        RegExp(r'([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|\))([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|∼|\()'),
+            (match) => '${match.group(1)}∧${match.group(2)}',
+      );
     }
+
+    return expression;
+  }
+
+  List<String> sortVariables(String texto) {
+    List<String> array = [];
+    for (String item in Set.from(texto.replaceAll("[Verdadeiro]", "1").replaceAll("[Falso]", "0").split(''))) {
+      array.add(item);
+    }
+
+    return array.where((x) {
+      int charCode = x.codeUnitAt(0);
+      return charCode > 64 && charCode < 91;
+    }).toList()
+      ..sort();
+  }
+
+  void structureAnswer(){
+    expression = correctExpression(expression);
+    print(expression);
+    var variaveis = sortVariables(expression);
+    int qtde_linhas_tabela = pow(2, variaveis.length).toInt();
+    String bin = "0" * variaveis.length;
+    var array_answer_table = {};
+    print(bin);
   }
 
   void calculate() {
     setState(() {
+      structureAnswer();
       // Calcula o resultado
       if (expression != " ") {
-        structureAnswer();
+
         clearExpression();
       }
     });
@@ -214,7 +211,7 @@ class _tudo extends State<tudo>{
       }
 
       expression += btnVal;
-      removeSpaces(expression);
+      expression = removeSpaces(expression);
     });
     }
 
