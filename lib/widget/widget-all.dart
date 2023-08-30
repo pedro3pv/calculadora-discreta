@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'main.dart';
 import 'dart:math' as math;
 
 class screen extends StatelessWidget {
