@@ -17,6 +17,7 @@ class tudo extends StatefulWidget {
 class _tudo extends State<tudo> {
   static const OPERATORS = ['∼', '∧', '⊻', '∨', '→', '↔'];
   String expression = " ";
+  bool calcular = true;
 
   bool evaluateExpression(String expression, Map<String, bool> values) {
     expression = expression.replaceAll('→', '=>').replaceAll('¬', '!');
@@ -60,39 +61,6 @@ class _tudo extends State<tudo> {
     return stack.isNotEmpty ? stack.first : false;
   }
 
-  List<String> _extractVariables(String expression) {
-    final uniqueVariables = expression
-        .split('')
-        .where((char) =>
-            char != '(' &&
-            char != ')' &&
-            char != '&' &&
-            char != '|' &&
-            char != '!' &&
-            char != 'T' &&
-            char != 'F' &&
-            char != '=')
-        .toSet();
-    return uniqueVariables.toList();
-  }
-
-  List<Map<String, bool>> _generateTruthValues(List<String> variables) {
-    final truthValues = <Map<String, bool>>[];
-    final count = variables.length;
-
-    for (var i = 0; i < (1 << count); i++) {
-      final values = <String, bool>{};
-
-      for (var j = 0; j < count; j++) {
-        values[variables[j]] = ((i >> j) & 1) == 1;
-      }
-
-      truthValues.add(values);
-    }
-
-    return truthValues;
-  }
-
   bool isVariable(String btnVal) {
     if (btnVal.codeUnitAt(0) > 64 && btnVal.codeUnitAt(0) < 91) {
       return true;
@@ -116,6 +84,7 @@ class _tudo extends State<tudo> {
       } else {
         clearResult();
       }
+      calcular = true;
     });
   }
 
@@ -132,7 +101,9 @@ class _tudo extends State<tudo> {
   void backspace() {
     // Apaga o último valor digitado
     setState(() {
-      expression = expression.substring(0, expression.length - 1);
+      if(calcular) {
+        expression = expression.substring(0, expression.length - 1);
+      }
     });
   }
 
@@ -180,7 +151,6 @@ class _tudo extends State<tudo> {
     int qtde_linhas_tabela = pow(2, variaveis.length).toInt();
     expression = correctExpression(expression);
     var array_answer_table = {};
-    print(expression);
     String bin = "0" * variaveis.length;
     for (int i = 0; i < qtde_linhas_tabela; i++) {
       Map<String, String> valores = {};
@@ -193,7 +163,7 @@ class _tudo extends State<tudo> {
         array_answer_table[variaveis[j]]!.add((bin[j] == '0') ? "V" : "F");
       }
 
-      var resposta = calculateExpression(expression, valores);
+      var resposta = calculate_expression(expression, valores);
       for (var expressao in resposta[1].split('|')) {
         var exp = expressao.split(':');
         if (exp[0] != "" && !isRepeatedVar(exp[0], variaveis)) {
@@ -233,99 +203,88 @@ class _tudo extends State<tudo> {
     return result;
   }
 
-  String calculateInnerExpression(String exp) {
-    while (exp.contains(RegExp(r'∼(0|1)'))) {
+  String calculate_inner_expression(String exp) {
+    while (RegExp(r'∼(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'∼(0|1)'), (match) {
-        return (match.group(1) == '0') ? '1' : '0';
+        String? p = match.group(1);
+        return (p == '0') ? '1' : '0';
       });
     }
-
-    while (exp.contains(RegExp(r'(0|1)∧(0|1)'))) {
+    while (RegExp(r'(0|1)∧(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)∧(0|1)'), (match) {
-        return (match.group(1) == '1' && match.group(2) == '1') ? '1' : '0';
+        String? p = match.group(1);
+        String? q = match.group(2);
+        return (p == '1' && q == '1') ? '1' : '0';
       });
     }
-
-    while (exp.contains(RegExp(r'(0|1)⊻(0|1)'))) {
+    while (RegExp(r'(0|1)⊻(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)⊻(0|1)'), (match) {
-        return ((match.group(1) == '0' && match.group(2) == '1') ||
-                (match.group(1) == '1' && match.group(2) == '0'))
-            ? '1'
-            : '0';
+        String? p = match.group(1);
+        String? q = match.group(2);
+        return ((p == '0' && q == '1') || (p == '1' && q == '0')) ? '1' : '0';
       });
     }
-
-    while (exp.contains(RegExp(r'(0|1)∨(0|1)'))) {
+    while (RegExp(r'(0|1)∨(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)∨(0|1)'), (match) {
-        return (match.group(1) == '1' || match.group(2) == '1') ? '1' : '0';
+        String? p = match.group(1);
+        String? q = match.group(2);
+        return (p == '1' || q == '1') ? '1' : '0';
       });
     }
-
-    while (exp.contains(RegExp(r'(0|1)→(0|1)'))) {
+    while (RegExp(r'(0|1)→(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)→(0|1)'), (match) {
-        return (match.group(1) == '1' && match.group(2) == '0') ? '0' : '1';
+        String? p = match.group(1);
+        String? q = match.group(2);
+        return (p == '1' && q == '0') ? '0' : '1';
       });
     }
-
-    while (exp.contains(RegExp(r'(0|1)↔(0|1)'))) {
+    while (RegExp(r'(0|1)↔(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)↔(0|1)'), (match) {
-        return ((match.group(1) == '1' && match.group(2) == '1') ||
-                (match.group(1) == '0' && match.group(2) == '0'))
-            ? '1'
-            : '0';
+        String? p = match.group(1);
+        String? q = match.group(2);
+        return ((p == '1' && q == '1') || (p == '0' && q == '0')) ? '1' : '0';
       });
     }
-
     return exp;
+  }
+
+  List<String> calculate_expression(String exp, Map<String, dynamic> obj, [String string_result = ""]) {
+    int cont = 0;
+    Map<String, dynamic> exp_dicio = {};
+    String result = "(${exp})";
+    while (result.contains(RegExp(r"\(([^\(\)]*)\)"))) {
+      cont++;
+      result = result.replaceAllMapped(RegExp(r"\(([^\(\)]*)\)"), (match) {
+        exp_dicio["[P${cont}]"] = {};
+        exp_dicio["[P${cont}]"]["exp"] = match.group(1);
+        return "[P${cont}]";
+      });
+    }
+    for (String inner_exp in exp_dicio.keys) {
+      String raw_inner_exp = exp_dicio[inner_exp]["exp"];
+      String modified_inner_exp = exp_dicio[inner_exp]["exp"];
+      while (raw_inner_exp.contains(RegExp(r"(\[P\d+\])"))) {
+        raw_inner_exp = raw_inner_exp.replaceAllMapped(RegExp(r"(\[P\d+\])"), (match) {
+          return "(${exp_dicio[match.group(1)]["exp"]})";
+        });
+      }
+      while (modified_inner_exp.contains(RegExp(r"(\[P\d+\])"))) {
+        modified_inner_exp = modified_inner_exp.replaceAllMapped(RegExp(r"(\[P\d+\])"), (match) {
+          return exp_dicio[match.group(1)]["value"];
+        });
+      }
+      modified_inner_exp = modified_inner_exp.replaceAll("[Verdadeiro]", "1").replaceAll("[Falso]", "0");
+      for (String variable in obj.keys) {
+        modified_inner_exp = modified_inner_exp.replaceAll(variable, obj[variable].toString());
+      }
+      exp_dicio[inner_exp]["value"] = calculate_inner_expression(modified_inner_exp);
+      string_result = "${string_result}|${raw_inner_exp}:${exp_dicio[inner_exp]["value"]}";
+    }
+    return [result, string_result];
   }
 
   bool isRepeatedVar(String str, List<String> array) {
     return array.contains(str);
-  }
-
-  List calculateExpression(String exp, Map<String, String> obj,
-      [String stringResult = ""]) {
-    var cont = 0;
-    var expDicio = {};
-    var result = "(${exp})";
-
-    while (result.contains(RegExp(r'\(([^\(\)]*)\)'))) {
-      cont++;
-      result = result.replaceFirstMapped(RegExp(r'\(([^\(\)]*)\)'), (match) {
-        expDicio['[P$cont'] = {'exp': match.group(1)!};
-        return '[P$cont]';
-      });
-    }
-
-    for (var innerExp in expDicio.keys) {
-      var rawInnerExp = expDicio[innerExp]!['exp'];
-      var modifiedInnerExp = expDicio[innerExp]!['exp'];
-
-      while (rawInnerExp.contains(RegExp(r'(\[P\d+\])'))) {
-        rawInnerExp = rawInnerExp.replaceAllMapped(RegExp(r'(\[P\d+\])'),
-            (match) => '(${expDicio[match.group(0)]!['exp']})');
-      }
-
-      while (modifiedInnerExp.contains(RegExp(r'(\[P\d+\])'))) {
-        modifiedInnerExp = modifiedInnerExp.replaceAllMapped(
-            RegExp(r'(\[P\d+\])'),
-            (match) => expDicio[match.group(0)]!['value']);
-      }
-
-      modifiedInnerExp = modifiedInnerExp
-          .replaceAll("[Verdadeiro]", "1")
-          .replaceAll("[Falso]", "0");
-
-      obj.forEach((variable, value) {
-        modifiedInnerExp = modifiedInnerExp.replaceAll(variable, value);
-      });
-
-      expDicio[innerExp]!['value'] = calculateInnerExpression(modifiedInnerExp);
-      stringResult =
-          '$stringResult|${rawInnerExp}:${expDicio[innerExp]!['value']}';
-    }
-
-    return [result, stringResult];
   }
 
   var arrayElement = [];
@@ -341,86 +300,171 @@ class _tudo extends State<tudo> {
     }
   }
 
+  // Função para converter um mapa genérico em uma lista de strings
   List<String> convertMapToArray(Map<dynamic, dynamic> inputMap) {
     List<String> resultArray = [];
 
-    // Adicionar as chaves do mapa ao resultado (convertidas para String)
+    // Itera pelas chaves do mapa
     for (dynamic key in inputMap.keys) {
+      // Adiciona a chave convertida para string ao resultado
       resultArray.add(key.toString());
 
-      // Adicionar os valores da lista correspondente ao resultado (convertidos para String)
+      // Obtém a lista de valores correspondente à chave
       List<dynamic> valuesList = inputMap[key];
+
+      // Converte cada valor para string e adiciona ao resultado
       resultArray.addAll(valuesList.map((value) => value.toString()));
     }
 
     return resultArray;
   }
 
+// Função para converter um mapa genérico em um mapa de strings para strings
   Map<String, String> convertDynamicMapToStringMap(Map<dynamic, dynamic> dynamicMap) {
     Map<String, String> stringMap = {};
 
+    // Itera por todas as chaves e valores do mapa dinâmico
     dynamicMap.forEach((key, value) {
+      // Converte a chave e o valor para strings e adiciona ao novo mapa
       stringMap[key.toString()] = value.toString();
     });
 
     return stringMap;
   }
 
+// Lista de strings vazia
   List<String> stringList = [];
   List<String> test = [];
+// Variável booleana inicializada como falsa
   bool calculado = false;
+
+// Função para separar elementos de uma lista com base em um intervalo específico
+  List<String> separarElementos(List<String> lista) {
+    List<String> listaElement = [];
+    // Itera pelas posições da lista a partir de um ponto específico até o final
+    for (int i = (lista.length - temp_qtde_linhas_tabela); i < lista.length; i++) {
+      // Adiciona o elemento atual à nova lista
+      listaElement.add(lista[i]);
+    }
+    return listaElement;
+  }
+
+
+// Função para verificar se uma lista contém apenas "F"s, indicando tautologia
+  bool isTaltology(List<String> lista) {
+    bool tautology = true;
+    for (int i = 0; i < lista.length; i++) {
+      if (lista[i] == "F") {
+        tautology = false;
+      }
+    }
+    return tautology;
+  }
+
+// Função para verificar se uma lista contém apenas "V"s, indicando contradição
+  bool isContradiction(List<String> lista) {
+    bool contradiction = true;
+    for (int i = 0; i < lista.length; i++) {
+      if (lista[i] == "V") {
+        contradiction = false;
+      }
+    }
+    return contradiction;
+  }
+
+// Função para verificar se uma lista contém tanto "V"s quanto "F"s, indicando contingência
+  bool isContingency(List<String> lista) {
+    int vCount = 0;
+    int fCount = 0;
+
+    for (var element in lista) {
+      if (element == 'V') {
+        vCount++;
+      }
+      if (element == 'F') {
+        fCount++;
+      }
+      if (vCount > 0 && fCount > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   void calculate() {
     setState(() {
-      structureAnswer();
-      tableElements(temp_array_answer_table);
-      print(temp_array_answer_table);
-      print(temp_qtde_linhas_tabela);
-      print(convertMapToArray(temp_array_answer_table));
-      stringList = convertMapToArray(temp_array_answer_table);
-      calculado = true;
-      // Calcula o resultado
-      if (expression != " ") {
-        clearExpression();
+      if (calcular) {
+        calcular = false;
+        structureAnswer();
+        tableElements(temp_array_answer_table);
+        stringList = convertMapToArray(temp_array_answer_table);
+        print(temp_qtde_linhas_tabela);
+        print(stringList);
+        List<String> elementList = separarElementos(stringList);
+        calculado = true;
+
+        // limpar oque está sendo exibido na tela
+        if (expression != " ") {
+          clearExpression();
+        }
+        // exibir na tela oque a função é
+        if (isTaltology(elementList)) {
+          expression = "é uma tautologia";
+          print("tautologia");
+        } else if (isContradiction(elementList)) {
+          expression = "é uma contradição";
+          print("contradição");
+        } else if (isContingency(elementList)) {
+          expression = "é uma contingência";
+          print("contingência");
+        } else {
+          expression = "error";
+          print("error");
+        }
       }
     });
   }
 
   void digito(String btnVal) {
     setState(() {
-      print(btnVal);
-      if (btnVal == '∼') {
-        if (expression.endsWith('∼')) return;
-      } else {
-        if (isLogicalOperator(btnVal) &&
-            isLogicalOperator(expression.substring(expression.length - 1)))
+      if(calcular) {
+        if (btnVal == '∼') {
+          if (expression.endsWith('∼')) return;
+        } else {
+          if (isLogicalOperator(btnVal) &&
+              isLogicalOperator(expression.substring(expression.length - 1)))
+            return;
+          if (isLogicalOperator(btnVal) &&
+              expression.substring(expression.length - 1) == '') return;
+        }
+        if ((isVariable(btnVal) ||
+            btnVal == '[Verdadeiro]' ||
+            btnVal == '[Falso]') &&
+            (isVariable(expression.substring(expression.length - 1)) ||
+                RegExp(r'\[(?:Verdadeiro|Falso)\]$').hasMatch(expression))) {
           return;
-        if (isLogicalOperator(btnVal) &&
-            expression.substring(expression.length - 1) == '') return;
-      }
-      if ((isVariable(btnVal) ||
-              btnVal == '[Verdadeiro]' ||
-              btnVal == '[Falso]') &&
-          (isVariable(expression.substring(expression.length - 1)) ||
-              RegExp(r'\[(?:Verdadeiro|Falso)\]$').hasMatch(expression))) {
-        return;
-      }
+        }
 
-      if (btnVal == '(' &&
-          isVariable(expression.substring(expression.length - 1))) {
-        return;
-      }
-      if (btnVal == ')' &&
-          (expression.replaceAll(RegExp(r'[^\(]'), '').length <=
-              expression.replaceAll(RegExp(r'[^\)]'), '').length)) {
-        return;
-      }
-      if (btnVal == ')' && expression.endsWith("(")) {
-        return;
-      }
+        if (btnVal == '(' &&
+            isVariable(expression.substring(expression.length - 1))) {
+          return;
+        }
+        if (btnVal == ')' &&
+            (expression
+                .replaceAll(RegExp(r'[^\(]'), '')
+                .length <=
+                expression
+                    .replaceAll(RegExp(r'[^\)]'), '')
+                    .length)) {
+          return;
+        }
+        if (btnVal == ')' && expression.endsWith("(")) {
+          return;
+        }
 
-      expression += btnVal;
-      expression = removeSpaces(expression);
+        expression += btnVal;
+        expression = removeSpaces(expression);
+      }
     });
   }
 
@@ -433,13 +477,15 @@ class _tudo extends State<tudo> {
             children: [
               ElevatedButton.icon(
                   onPressed: () {
-                    calculado ?
+                    if(calculado){
                     Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (context) => table(arrayElement: stringList, tamanhoTabela: temp_qtde_linhas_tabela + 1,
-                                ))) :
-                    null;
+                                )));
+                    } else {
+                      null;
+                    }
                   },
                   icon: Icon(Icons.table_rows),
                   label: Text("Tabela verdade")),
@@ -650,7 +696,7 @@ class _tudo extends State<tudo> {
                                         callback: digito,
                                       ),
                                       button_specialy8(
-                                        text: '~',
+                                        text: '∼',
                                         callback: digito,
                                       ),
                                       button_calculator(
