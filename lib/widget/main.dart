@@ -101,11 +101,10 @@ class _tudo extends State<tudo> {
   void backspace() {
     // Apaga o último valor digitado
     setState(() {
-      if(calcular) {
-        expression = expression.substring(0, expression.length - 1);
-        if (expression == ""){
-          expression == " ";
-        }
+      if (expression.length > 1) {
+        expression = expression.substring(1, expression.length - 1);
+      }else{
+        expression = " ";
       }
     });
   }
