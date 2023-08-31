@@ -1,39 +1,14 @@
-name: Flutter Web
+name: Gh-Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v1
-        with:
-          channel: "stable"
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Web
-        run: flutter build web --release
-
-      - name: Deploy
-        run: |
-          cd build/web
-          git init
-          git config --global user.email pedro_atm3p@hotmail.com
-          git config --global user.name pedro3pv
-          git status
-          git remote add origin https://${{secrets.token}}@github.com/pedro3pv/pedro3pv.github.io.git
-          git checkout -b gh-pages
-          git add --all
-          git commit -m "update"
-          git push origin gh-pages -f
-
+      - uses: actions/checkout@v2 # Only works with v2
+      - uses: subosito/flutter-action@v1
+      - uses: bluefireteam/flutter-gh-pages@v7
