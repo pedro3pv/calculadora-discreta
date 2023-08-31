@@ -103,6 +103,9 @@ class _tudo extends State<tudo> {
     setState(() {
       if(calcular) {
         expression = expression.substring(0, expression.length - 1);
+        if (expression == ""){
+          expression == " "
+        }
       }
     });
   }
