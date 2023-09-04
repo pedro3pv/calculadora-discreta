@@ -19,49 +19,7 @@ class _tudo extends State<tudo> {
   String expression = " ";
   bool calcular = true;
 
-  bool evaluateExpression(String expression, Map<String, bool> values) {
-    expression = expression.replaceAll('→', '=>').replaceAll('¬', '!');
-
-    for (var variable in values.keys) {
-      expression = expression.replaceAll(variable, values[variable].toString());
-    }
-
-    return Function.apply(logicalExpression, [expression]);
-  }
-
-  bool logicalExpression(String expression) => logicalEval(expression);
-
-  bool logicalEval(String expression) {
-    final tokens = expression.split('');
-    final stack = <bool>[];
-
-    for (var token in tokens) {
-      if (token == 'T') {
-        stack.add(true);
-      } else if (token == 'F') {
-        stack.add(false);
-      } else if (token == '!') {
-        final operand = stack.removeLast();
-        stack.add(!operand);
-      } else if (token == '&') {
-        final operand2 = stack.removeLast();
-        final operand1 = stack.removeLast();
-        stack.add(operand1 && operand2);
-      } else if (token == '|') {
-        final operand2 = stack.removeLast();
-        final operand1 = stack.removeLast();
-        stack.add(operand1 || operand2);
-      } else if (token == '=>') {
-        final operand2 = stack.removeLast();
-        final operand1 = stack.removeLast();
-        stack.add(!operand1 || operand2);
-      }
-    }
-
-    return stack.isNotEmpty ? stack.first : false;
-  }
-
-  bool isVariable(String btnVal) {
+  bool isVariable(String btnVal) { //verifica se o primeiro caractere da string é uma letra maiúscula.
     if (btnVal.codeUnitAt(0) > 64 && btnVal.codeUnitAt(0) < 91) {
       return true;
     }
@@ -101,20 +59,27 @@ class _tudo extends State<tudo> {
   void backspace() {
     // Apaga o último valor digitado
     setState(() {
-      if (expression.length > 1) {
-        expression = expression.substring(1, expression.length - 1);
-      }else{
-        expression = " ";
+      if (calcular) {
+        if (expression.length > 1) {
+          expression = expression.substring(1, expression.length - 1);
+        } else {
+          expression = " ";
+        }
       }
     });
   }
 
   String correctExpression(String texto) {
-    String expression = texto;
+    String expression = texto; //Cria uma nova string chamada expression com o mesmo conteúdo da string de entrada texto.
+    //O código a seguir verifica se há mais parênteses de abertura ( do que parênteses de fechamento ).
+    // Se isso for verdade, adiciona um parêntese de fechamento ) ao final da expressão. Isso ajuda a garantir que a expressão tenha parênteses correspondentes.
     expression += (expression.replaceAll(RegExp(r'[^\(]'), '').length >
             expression.replaceAll(RegExp(r'[^\)]'), '').length)
         ? ')'
         : '';
+
+    //O loop while verifica se há variáveis ou operadores adjacentes na expressão (por exemplo, "AB", "A∼", "B1") e, se encontrar, substitui-os inserindo um
+    // operador de conjunção (∧) entre eles. Isso garante que a expressão esteja bem formada e que todos os operadores necessários estejam presentes.
 
     while (RegExp(
             r'([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|\))([A-Z]|\[Verdadeiro\]|\[Falso\]|0|1|∼|\()')
@@ -126,34 +91,45 @@ class _tudo extends State<tudo> {
       );
     }
 
-    return expression;
+    return expression;//Retorna a expressão corrigida após todas as correções terem sido aplicadas.
   }
 
   List<String> sortVariables(String texto) {
+    //List<String> array = [];: Inicializa uma lista vazia chamada array que será usada para armazenar as variáveis encontradas na expressão.
     List<String> array = [];
-    for (String item in Set.from(texto
-        .replaceAll("[Verdadeiro]", "1")
-        .replaceAll("[Falso]", "0")
-        .split(''))) {
+    for (String item in Set.from(texto//Itera pelos caracteres únicos resultantes da divisão anterior (elimina duplicatas) e adiciona cada caractere à lista array.
+        .replaceAll("[Verdadeiro]", "1")//texto.replaceAll("[Verdadeiro]", "1") substitui todas as ocorrências de "[Verdadeiro]" por "1" na expressão.
+        .replaceAll("[Falso]", "0")//texto.replaceAll("[Falso]", "0") substitui todas as ocorrências de "[Falso]" por "0" na expressão.
+        .split(''))) {//.split('') divide a expressão em uma lista de caracteres.
       array.add(item);
     }
 
+    //O código a seguir filtra a lista array para manter apenas os caracteres que são letras maiúsculas (variáveis) usando array.where(...). O critério de filtro
+    // é determinado pelo valor numérico do código Unicode de cada caractere. Caracteres maiúsculos em Unicode têm valores de código de 65 (A) a 90 (Z).
+
     return array.where((x) {
       int charCode = x.codeUnitAt(0);
-      return charCode > 64 && charCode < 91;
-    }).toList()
-      ..sort();
+      return charCode > 64 && charCode < 91;//A função retorna a lista classificada de variáveis encontradas na expressão.
+    }).toList()//.toList(): Converte o resultado do filtro em uma lista.
+      ..sort();//..sort(): Classifica a lista resultante em ordem alfabética.
   }
 
   Map<dynamic, dynamic> temp_array_answer_table = {};
   int temp_qtde_linhas_tabela = 0;
 
+  //Essa função é responsável por criar uma tabela de respostas para uma expressão lógica,
+  // gerando todas as combinações possíveis de valores para as variáveis presentes na expressão e calculando o resultado da expressão para cada combinação.
+
   void structureAnswer() {
+    //Ela começa obtendo a lista de variáveis presentes na expressão
+    // através da função sortVariables e calcula a quantidade de linhas necessárias na tabela usando a fórmula 2^numero_de_variaveis.
     var variaveis = sortVariables(expression);
     int qtde_linhas_tabela = pow(2, variaveis.length).toInt();
+    //A expressão é corrigida com a função correctExpression.
     expression = correctExpression(expression);
     var array_answer_table = {};
     String bin = "0" * variaveis.length;
+    //Um loop for gera todas as combinações binárias possíveis para as variáveis, armazenando essas combinações no mapa valores.
     for (int i = 0; i < qtde_linhas_tabela; i++) {
       Map<String, String> valores = {};
       for (int j = 0; j < variaveis.length; j++) {
@@ -164,8 +140,11 @@ class _tudo extends State<tudo> {
         }
         array_answer_table[variaveis[j]]!.add((bin[j] == '0') ? "V" : "F");
       }
-
+      //Para cada combinação, a função calculate_expression
+      // é chamada para calcular o resultado da expressão com base nos valores das variáveis.
       var resposta = calculate_expression(expression, valores);
+      //Em seguida, a resposta é dividida em partes usando split('|'),
+      // e cada parte é processada para preencher a tabela de respostas array_answer_table.
       for (var expressao in resposta[1].split('|')) {
         var exp = expressao.split(':');
         if (exp[0] != "" && !isRepeatedVar(exp[0], variaveis)) {
@@ -178,11 +157,14 @@ class _tudo extends State<tudo> {
       bin = addBinary(bin, "1");
     }
 
+    //Por fim, o resultado é armazenado em temp_array_answer_table e a quantidade de linhas da tabela em temp_qtde_linhas_tabela.
+
     temp_array_answer_table = array_answer_table;
     temp_qtde_linhas_tabela = qtde_linhas_tabela;
   }
 
-  String addBinary(String a, String b) {
+  String addBinary(String a, String b) {//Esta função recebe duas strings binárias a e b e retorna a soma delas como uma string binária.
+    //Ela realiza uma soma binária da direita para a esquerda, tratando os casos em que a soma gera um carry (vai um).
     var i = a.length - 1;
     var j = b.length - 1;
     var carry = 0;
@@ -206,12 +188,16 @@ class _tudo extends State<tudo> {
   }
 
   String calculate_inner_expression(String exp) {
+    //O primeiro loop verifica se há o operador de negação (∼) seguido de um valor booleano (0 ou 1).
+    // Se encontrar, substitui o valor booleano negando-o (0 se torna 1, 1 se torna 0).
     while (RegExp(r'∼(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'∼(0|1)'), (match) {
         String? p = match.group(1);
         return (p == '0') ? '1' : '0';
       });
     }
+    //O segundo loop verifica se há o operador de conjunção (∧) entre dois valores booleanos (0 ou 1).
+    // Se encontrar, aplica a operação de conjunção, retornando 1 se ambos os valores forem 1, caso contrário, retorna 0.
     while (RegExp(r'(0|1)∧(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)∧(0|1)'), (match) {
         String? p = match.group(1);
@@ -240,6 +226,8 @@ class _tudo extends State<tudo> {
         return (p == '1' && q == '0') ? '0' : '1';
       });
     }
+    //O sexto loop verifica se há o operador de bicondicional (↔) entre dois valores booleanos (0 ou 1).
+    // Se encontrar, aplica a operação de bicondicional, retornando 1 se ambos os valores forem iguais (1 ou 0), caso contrário, retorna 0.
     while (RegExp(r'(0|1)↔(0|1)').hasMatch(exp)) {
       exp = exp.replaceAllMapped(RegExp(r'(0|1)↔(0|1)'), (match) {
         String? p = match.group(1);
@@ -247,13 +235,17 @@ class _tudo extends State<tudo> {
         return ((p == '1' && q == '1') || (p == '0' && q == '0')) ? '1' : '0';
       });
     }
+    //Os outros operadores (∨ para disjunção, → para implicação e ⊻ para ou-exclusivo) são tratados de maneira
+    // semelhante em loops subsequentes, onde a função encontra o operador correspondente e realiza a operação apropriada nos valores booleanos.
     return exp;
   }
 
-  List<String> calculate_expression(String exp, Map<String, dynamic> obj, [String string_result = ""]) {
-    int cont = 0;
-    Map<String, dynamic> exp_dicio = {};
-    String result = "(${exp})";
+  List<String> calculate_expression(String exp, Map<String, dynamic> obj, [String string_result = ""]) {//Essa função recebe uma expressão exp, um objeto obj contendo variáveis e um parâmetro opcional string_result inicializado como uma string vazia.
+    int cont = 0;//Ela cria um contador cont
+    Map<String, dynamic> exp_dicio = {};//dicionário exp_dicio vazio.
+    String result = "(${exp})";//A expressão exp é encapsulada entre parênteses e armazenada em result.
+    //Em seguida, entra em um loop que procura por trechos da expressão entre parênteses usando uma expressão regular.
+    // A cada iteração, substitui o trecho encontrado por uma chave única [Pcont] no exp_dicio e incrementa o contador cont.
     while (result.contains(RegExp(r"\(([^\(\)]*)\)"))) {
       cont++;
       result = result.replaceAllMapped(RegExp(r"\(([^\(\)]*)\)"), (match) {
@@ -262,6 +254,8 @@ class _tudo extends State<tudo> {
         return "[P${cont}]";
       });
     }
+    //Depois, entra em um segundo loop que substitui todas as ocorrências das chaves [Pcont]
+    // no raw_inner_exp pela expressão correspondente no exp_dicio.
     for (String inner_exp in exp_dicio.keys) {
       String raw_inner_exp = exp_dicio[inner_exp]["exp"];
       String modified_inner_exp = exp_dicio[inner_exp]["exp"];
@@ -275,30 +269,34 @@ class _tudo extends State<tudo> {
           return exp_dicio[match.group(1)]["value"];
         });
       }
+      //Então, substitui [Verdadeiro] por "1" e [Falso] por "0" na expressão modificada.
       modified_inner_exp = modified_inner_exp.replaceAll("[Verdadeiro]", "1").replaceAll("[Falso]", "0");
+      //Em seguida, substitui todas as variáveis no modified_inner_exp pelos valores correspondentes no objeto obj.
       for (String variable in obj.keys) {
         modified_inner_exp = modified_inner_exp.replaceAll(variable, obj[variable].toString());
       }
-      exp_dicio[inner_exp]["value"] = calculate_inner_expression(modified_inner_exp);
+      exp_dicio[inner_exp]["value"] = calculate_inner_expression(modified_inner_exp);//Calcula o valor da expressão modificada usando a função calculate_inner_expression.
+      //Finalmente, concatena informações sobre a expressão original e seu valor calculado em
+      // string_result e retorna uma lista contendo result (a expressão final) e string_result (informações sobre as expressões internas).
       string_result = "${string_result}|${raw_inner_exp}:${exp_dicio[inner_exp]["value"]}";
     }
     return [result, string_result];
   }
 
-  bool isRepeatedVar(String str, List<String> array) {
-    return array.contains(str);
+  bool isRepeatedVar(String str, List<String> array) {//Esta função verifica se uma string str está contida em uma lista array.
+    return array.contains(str);//Retorna true se str estiver na lista e false caso contrário.
   }
 
   var arrayElement = [];
 
-  tableElements(Map<dynamic, dynamic> obj) {
-    var arrayElement = [];
-    if (obj.isNotEmpty) {
+  tableElements(Map<dynamic, dynamic> obj) {//Esta função recebe um objeto obj.
+    var arrayElement = [];//Inicializa uma lista arrayElement vazia.
+    if (obj.isNotEmpty) {//Verifica se o objeto não está vazio.
       var keys = obj.keys;
-      for (var element in keys) {
+      for (var element in keys) {//Se o objeto não estiver vazio, obtém as chaves do objeto e as adiciona à lista arrayElement.
         arrayElement.add(element);
       }
-      this.arrayElement = arrayElement;
+      this.arrayElement = arrayElement;// Em seguida, atualiza a variável de classe arrayElement com a lista resultante.
     }
   }
 
@@ -427,31 +425,31 @@ class _tudo extends State<tudo> {
     });
   }
 
-  void digito(String btnVal) {
+  void digito(String btnVal) { // Insere o valor digitado na expressão
     setState(() {
       if(calcular) {
         if (btnVal == '∼') {
-          if (expression.endsWith('∼')) return;
+          if (expression.endsWith('∼')) return; //impede de escrever 2 vezes seguidas o ∼
         } else {
           if (isLogicalOperator(btnVal) &&
-              isLogicalOperator(expression.substring(expression.length - 1)))
+              isLogicalOperator(expression.substring(expression.length - 1))) // verificar se oque foi digitado é um operador logico e se oque foi escrito antes é um operador logico
             return;
           if (isLogicalOperator(btnVal) &&
-              expression.substring(expression.length - 1) == '') return;
+              expression.substring(expression.length - 1) == '') return; // verificar se oque foi digitado é um operador logico e se oque foi escrito antes é igual a esse operador logico
         }
         if ((isVariable(btnVal) ||
-            btnVal == '[Verdadeiro]' ||
+            btnVal == '[Verdadeiro]' || // aqui ele verificar se foi apertado o botao de verdadeiro ou falso
             btnVal == '[Falso]') &&
             (isVariable(expression.substring(expression.length - 1)) ||
-                RegExp(r'\[(?:Verdadeiro|Falso)\]$').hasMatch(expression))) {
+                RegExp(r'\[(?:Verdadeiro|Falso)\]$').hasMatch(expression))) { // aqui ele verificar se foi ja foi escrito antes verdadeiro ou falso para não se criar um calculo invalido
           return;
         }
 
-        if (btnVal == '(' &&
-            isVariable(expression.substring(expression.length - 1))) {
+        if (btnVal == "(" &&
+            isVariable(expression.substring(expression.length - 1))) { //impede de criar uma expressão incorreta "A("
           return;
         }
-        if (btnVal == ')' &&
+        if (btnVal == ')' && //aqui verificar quantos parentese de fechamento podem ser colocados
             (expression
                 .replaceAll(RegExp(r'[^\(]'), '')
                 .length <=
@@ -460,7 +458,7 @@ class _tudo extends State<tudo> {
                     .length)) {
           return;
         }
-        if (btnVal == ')' && expression.endsWith("(")) {
+        if (btnVal == ')' && expression.endsWith("(")) { //impede o fechamento do parentese sem nada dentro
           return;
         }
 
